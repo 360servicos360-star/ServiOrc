@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ServiOrc — Orçamentos</title>
+  <style>
+    :root {
+      --green: #087f5b;
+      --dark: #17352b;
+      --muted: #64748b;
+      --bg: #f3f6f4;
+      --white: #fff;
+      --border: #e2e8e5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      color: var(--dark);
+      background: var(--bg);
+    }
+    header {
+      background: var(--green);
+      color: white;
+      padding: 18px 20px;
+    }
+    header h1 { margin: 0; font-size: 22px; }
+    header p { margin: 5px 0 0; opacity: .9; font-size: 14px; }
+    main { max-width: 1000px; margin: auto; padding: 20px; }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    h2 { margin: 0; font-size: 20px; }
+    button, select, input, textarea { font: inherit; }
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 11px 14px;
+      cursor: pointer;
+    }
+    .primary { background: var(--green); color: white; font-weight: bold; }
+    .secondary { background: #e7f2ed; color: var(--green); }
+    .danger { background: #fff0ef; color: #b42318; }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    .card, .panel {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .card span { display: block; color: var(--muted); font-size: 13px; }
+    .card strong { display: block; margin-top: 8px; font-size: 21px; }
+    .panel { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 680px; }
+    th, td {
+      text-align: left;
+      padding: 12px 9px;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    th { color: var(--muted); font-weight: 600; }
+    td select { padding: 7px; border: 1px solid var(--border); border-radius: 6px; }
+    .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .actions button { padding: 8px 9px; font-size: 13px; }
+    .empty { color: var(--muted); padding: 24px 8px; text-align: center; }
+    dialog {
+      border: 0;
+      border-radius: 14px;
+      width: min(520px, calc(100% - 24px));
+      padding: 0;
+      box-shadow: 0 15px 50px #0003;
+    }
+    dialog::backdrop { background: #10251dcc; }
+    .form { padding: 20px; }
+    .form h2 { margin-bottom: 16px; }
+    label { display: block; font-size: 13px; font-weight: bold; margin: 12px 0 5px; }
+    input, textarea {
+      width: 100%;
+      padding: 11px;
+      border: 1px solid #cbd5d0;
+      border-radius: 7px;
+      background: white;
+    }
+    textarea { min-height: 75px; resize: vertical; }
+    .form-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+    .hint { color: var(--muted); font-size: 12px; line-height: 1.5; margin-top: 16px; }
+    @media (max-width: 650px) {
+      main { padding: 14px; }
+      .cards { grid-template-columns: 1fr; }
+      .card strong { font-size: 19px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ServiOrc</h1>
+    <p>Orçamentos e pagamentos organizados</p>
+  </header>
+
+  <main>
+    <div class="topbar">
+      <h2>Resumo do negócio</h2>
+      <button class="primary" id="newQuote">+ Novo orçamento</button>
+    </div>
+
+    <section class="cards">
+      <div class="card">
+        <span>Orçamentos registados</span>
+        <strong id="quoteCount">0</strong>
+      </div>
+      <div class="card">
+        <span>Total recebido</span>
+        <strong id="receivedTotal">0 Kz</strong>
+      </div>
+      <div class="card">
+        <span>Por receber</span>
+        <strong id="owedTotal">0 Kz</strong>
+      </div>
+    </section>
+
+    <section class="panel">
+      <table>
+        <thead>
+          <tr>
+            <th>Cliente / serviço</th>
+            <th>Valor</th>
+            <th>Recebido</th>
+            <th>Estado</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="quoteRows"></tbody>
+      </table>
+      <div class="empty" id="emptyMessage">Ainda não há orçamentos. Cria o primeiro.</div>
+    </section>
+
+    <p class="hint">
+      Protótipo inicial: os dados ficam guardados apenas neste navegador e dispositivo.
+      Faz cópias de segurança e não uses ainda para guardar informações sensíveis.
+    </p>
+  </main>
+
+  <dialog id="quoteDialog">
+    <form class="form" id="quoteForm">
+      <h2>Novo orçamento</h2>
+
+      <label for="client">Nome do cliente *</label>
+      <input id="client" required maxlength="80" placeholder="Ex.: João Manuel">
+
+      <label for="phone">Telefone/WhatsApp</label>
+      <input id="phone" inputmode="tel" placeholder="Ex.: 923 000 000">
+
+      <label for="service">Serviço *</label>
+      <input id="service" required maxlength="100" placeholder="Ex.: Reparação de canalização">
+
+      <label for="description">Descrição</label>
+      <textarea id="description" maxlength="500" placeholder="Detalhes do trabalho, materiais ou prazo"></textarea>
+
+      <label for="amount">Valor total (Kz) *</label>
+      <input id="amount" type="number" min="0" step="1" required placeholder="Ex.: 25000">
+
+      <label for="validUntil">Válido até</label>
+      <input id="validUntil" type="date">
+
+      <div class="form-buttons">
+        <button type="button" class="secondary" id="cancelForm">Cancelar</button>
+        <button type="submit" class="primary">Guardar orçamento</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    const STORAGE_KEY = "serviorc_quotes_v1";
+    const statuses = ["Rascunho", "Enviado", "Aceite", "Em execução", "Concluído", "Recusado"];
+
+    let quotes = loadQuotes();
+
+    function loadQuotes() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveQuotes() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
+    }
+
+    function money(value) {
+      return new Intl.NumberFormat("pt-PT", {
+        maximumFractionDigits: 0
+      }).format(value || 0) + " Kz";
+    }
+
+    function escapeHTML(value) {
+      return String(value || "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;",
+        '"': "&quot;", "'": "&#039;"
+      })[char]);
+    }
+
+    function render() {
+      const rows = document.getElementById("quoteRows");
+      const empty = document.getElementById("emptyMessage");
+
+      document.getElementById("quoteCount").textContent = quotes.length;
+      document.getElementById("receivedTotal").textContent =
+        money(quotes.reduce((sum, quote) => sum + quote.paid, 0));
+      document.getElementById("owedTotal").textContent =
+        money(quotes.reduce((sum, quote) => sum + Math.max(0, quote.amount - quote.paid), 0));
+
+      empty.style.display = quotes.length ? "none" : "block";
+
+      rows.innerHTML = quotes.map(quote => `
+        <tr>
+          <td>
+            <strong>${escapeHTML(quote.client)}</strong><br>
+            ${escapeHTML(quote.service)}
+          </td>
+          <td>${money(quote.amount)}</td>
+          <td>${money(quote.paid)}</td>
+          <td>
+            <select aria-label="Estado do orçamento" onchange="changeStatus('${quote.id}', this.value)">
+              ${statuses.map(status =>
+                `<option ${quote.status === status ? "selected" : ""}>${status}</option>`
+              ).join("")}
+            </select>
+          </td>
+          <td>
+            <div class="actions">
+              <button class="secondary" onclick="shareWhatsApp('${quote.id}')">WhatsApp</button>
+              <button class="secondary" onclick="addPayment('${quote.id}')">Pagamento</button>
+            </div>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function changeStatus(id, status) {
+      const quote = quotes.find(item => item.id === id);
+      if (!quote) return;
+      quote.status = status;
+      saveQuotes();
+      render();
+    }
+
+    function addPayment(id) {
+      const quote = quotes.find(item => item.id === id);
+      if (!quote) return;
+
+      const remaining = Math.max(0, quote.amount - quote.paid);
+      if (remaining === 0) {
+        alert("Este orçamento já está totalmente pago.");
+        return;
+      }
+
+      const answer = prompt(
+        `Saldo por receber: ${money(remaining)}\nQuanto recebeste agora? (Kz)`
+      );
+      if (answer === null) return;
+
+      const amount = Number(answer);
+      if (!Number.isFinite(amount) || amount <= 0 || amount > remaining) {
+        alert("Introduz um valor válido, maior que zero e até " + money(remaining) + ".");
+        return;
+      }
+
+      quote.paid += amount;
+      quote.payments = quote.payments || [];
+      quote.payments.push({ amount, date: new Date().toISOString() });
+      saveQuotes();
+      render();
+    }
+
+    function shareWhatsApp(id) {
+      const quote = quotes.find(item => item.id === id);
+      if (!quote) return;
+
+      const balance = Math.max(0, quote.amount - quote.paid);
+      const text = [
+        `Olá ${quote.client}, segue o resumo do orçamento:`,
+        `Serviço: ${quote.service}`,
+        quote.description ? `Detalhes: ${quote.description}` : "",
+        `Valor total: ${money(quote.amount)}`,
+        `Recebido: ${money(quote.paid)}`,
+        `Saldo: ${money(balance)}`,
+        `Estado: ${quote.status}`,
+        quote.validUntil ? `Válido até: ${quote.validUntil}` : ""
+      ].filter(Boolean).join("\n");
+
+      const digits = (quote.phone || "").replace(/\D/g, "");
+      const phone = digits
+        ? (digits.startsWith("244") ? digits : "244" + digits)
+        : "";
+
+      const url = phone
+        ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+        : `https://wa.me/?text=${encodeURIComponent(text)}`;
+
+      window.open(url, "_blank");
+    }
+
+    const dialog = document.getElementById("quoteDialog");
+
+    document.getElementById("newQuote").addEventListener("click", () => dialog.showModal());
+    document.getElementById("cancelForm").addEventListener("click", () => dialog.close());
+
+    document.getElementById("quoteForm").addEventListener("submit", event => {
+      event.preventDefault();
+
+      const quote = {
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+        client: document.getElementById("client").value.trim(),
+        phone: document.getElementById("phone").value.trim(),
+        service: document.getElementById("service").value.trim(),
+        description: document.getElementById("description").value.trim(),
+        amount: Number(document.getElementById("amount").value),
+        paid: 0,
+        status: "Rascunho",
+        validUntil: document.getElementById("validUntil").value,
+        createdAt: new Date().toISOString(),
+        payments: []
+      };
+
+      if (!quote.client || !quote.service || quote.amount < 0) return;
+
+      quotes.unshift(quote);
+      saveQuotes();
+      render();
+      event.target.reset();
+      dialog.close();
+    });
+
+    render();
+  </script>
+</body>
+</html>
